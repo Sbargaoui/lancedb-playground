@@ -9,6 +9,7 @@ import lancedb
 import pyarrow as pa
 import pyarrow.parquet as pq
 import typer
+from lancedb.db import LanceTable
 
 log_level = os.environ.get("LOG_LEVEL", "info")
 logging.basicConfig(
@@ -58,6 +59,10 @@ def get_db():
         )
 
 
+def open_table(table: str):
+    return LanceTable(get_db(), table)
+
+
 def get_q(what="v"):
     tables = {
         "v": Q_V,
@@ -82,12 +87,14 @@ def db_init(n: int = DB_TABLE_SIZE):
 
 @app.command()
 def db_info():
-    logger.debug(get_db().open_table(DB_TABLE).head(10))
+    table = open_table(DB_TABLE)
+    logger.debug(table.head(10))
 
 
 @app.command()
 def db_add(n: int, start: int):
-    get_db().open_table(DB_TABLE).add(list(gen_data(n, start=start)))
+    table = open_table(DB_TABLE)
+    table.add(list(gen_data(n, start=start)))
 
 
 @app.command()
@@ -102,7 +109,7 @@ def q_info():
 
 @timeit
 def q_process(what: str):
-    table = get_db().open_table(DB_TABLE)
+    table = open_table(DB_TABLE)
     r = pa.Table.from_pylist(
         [
             {
@@ -122,7 +129,7 @@ def q_process(what: str):
 @app.command()
 @timeit
 def create_index():
-    get_db().open_table(DB_TABLE).create_index(
+    open_table(DB_TABLE).create_index(
         num_sub_vectors=8
     )  # TODO :avoid hard coded params
 
